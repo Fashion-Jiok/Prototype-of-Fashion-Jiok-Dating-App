@@ -1,56 +1,56 @@
 // D:\fashion-jiok\fashion-jiok\src\screens\Chat\ChatScreen.js
 
-import React, { useState, useEffect } from 'react'; // ⭐️ useEffect 추가
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, Image,
-  KeyboardAvoidingView, Platform, ActivityIndicator // ⭐️ ActivityIndicator 추가
+  KeyboardAvoidingView, Platform, ActivityIndicator, Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Send, Sparkles, Image as ImageIcon, Smile } from 'lucide-react-native';
+import { ArrowLeft, Send, Sparkles, Image as ImageIcon, Smile, X } from 'lucide-react-native';
 
-// ⭐️ 1. 우리가 만든 API 함수를 import 합니다.
-import { getAiSuggestions } from '../../services/api'; // ⚠️ 경로 확인! (src/services/api.js)
+import { getAiSuggestions } from '../../services/api';
 
 export default function ChatScreen({ navigation, route }) {
   const matchData = route?.params?.matchData || {
-    // ⭐️ 2. 중요: 'otherUserId'가 필요합니다.
-    // 이 ID는 상대방의 Firebase ID이며, MySQL DB의 StyleProfile 'userId'와 일치해야 합니다.
-    // 지금은 테스트용 ID를 넣습니다.
-    userId: "opponentUserId_Test", // 👈 (임시 테스트 ID, 실제 ID로 교체 필요)
+    userId: "opponentUserId_Test",
     name: "지우",
     age: 26,
     image: "https://images.unsplash.com/photo-1696435552024-5fc45acf98c4",
     styleScore: 92
   };
 
-  const [messages, setMessages] = useState([
-    // ⭐️ 첫 대화 제안 기능을 테스트하기 위해, 초기 메시지를 비워둡니다.
-  ]);
-
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
-
-  // ⭐️ 3. AI 제안을 '상태'로 관리합니다.
   const [aiSuggestions, setAiSuggestions] = useState([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true); // 로딩 상태
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false); // 모달 표시 여부
 
-  // ⭐️ 4. 화면이 처음 로드될 때 '첫 대화' 제안을 1회 요청합니다.
+  // ⭐️ 처음 화면 로드 시 자동 추천 (선택사항)
   useEffect(() => {
     fetchOpeningSuggestions();
-  }, []); // 빈 배열: 컴포넌트 마운트 시 1회 실행
+  }, []);
 
   const fetchOpeningSuggestions = async () => {
     setIsLoadingSuggestions(true);
 
-    // ⭐️ 5. 백엔드 서버에 '상대방 ID'와 '빈 채팅 이력'을 보냅니다.
     const context = {
-      otherUserId: matchData.userId, // 상대방 ID
-      chatHistory: [] // 첫 대화이므로 빈 배열
+      otherUserId: matchData.userId,
+      chatHistory: messages.length === 0 ? [] : messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        text: msg.text
+      }))
     };
 
     const suggestions = await getAiSuggestions(context);
 
     setAiSuggestions(suggestions);
     setIsLoadingSuggestions(false);
+  };
+
+  // ⭐️ AI 추천 버튼을 누를 때 호출
+  const handleRequestSuggestions = async () => {
+    setShowSuggestionsModal(true);
+    await fetchOpeningSuggestions();
   };
 
   const handleSend = (text) => {
@@ -66,10 +66,10 @@ export default function ChatScreen({ navigation, route }) {
 
     setMessages([...messages, newMessage]);
     setInputText('');
+    setShowSuggestionsModal(false); // 메시지 보내면 모달 닫기
   };
 
   const renderMessage = ({ item }) => (
-    // ... (메시지 렌더링 UI는 기존과 동일) ...
     <View className={`flex-row mb-4 ${item.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
       <View className={`max-w-[75%] ${item.sender === 'user' ? 'items-end' : 'items-start'}`}>
         {item.sender === 'user' ? (
@@ -80,139 +80,221 @@ export default function ChatScreen({ navigation, route }) {
             <Text className="text-white text-sm">{item.text}</Text>
           </LinearGradient>
         ) : (
-          <View className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-            <Text className="text-gray-900 text-sm">{item.text}</Text>
-          </View>
+          <LinearGradient
+            colors={['#6366f1', '#8b5cf6']}
+            className="rounded-2xl px-4 py-3"
+          >
+            <Text className="text-white text-sm">{item.text}</Text>
+          </LinearGradient>
         )}
-        <Text className={`text-gray-400 text-xs mt-1 ${item.sender === 'user' ? 'text-right' : 'text-left'}`}>
+        <Text className={`text-white text-xs mt-1 ${item.sender === 'user' ? 'text-right' : 'text-left'}`}>
           {item.timestamp}
         </Text>
       </View>
     </View>
   );
 
-  // ⭐️ 6. AI 제안 블록 렌더링 로직 (로딩/성공 분기 처리)
-  const renderAiSuggestions = () => {
+  // ⭐️ 첫 화면에 표시되는 AI 제안 (메시지가 없을 때만)
+  const renderInitialSuggestions = () => {
+    if (messages.length > 0) return null; // 메시지가 있으면 표시 안 함
+
     if (isLoadingSuggestions) {
       return (
-        <View className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mt-4 items-center justify-center h-24">
-          <ActivityIndicator color="#a855f7" />
-          <Text className="text-purple-700 mt-2 text-sm">AI가 대화를 제안 중입니다...</Text>
-        </View>
+        <LinearGradient
+          colors={['#a855f7', '#ec4899']}
+          className="rounded-2xl p-4 mt-4 items-center justify-center h-24"
+        >
+          <ActivityIndicator color="#ffffff" />
+          <Text className="text-white mt-2 text-sm">AI가 대화를 제안 중입니다...</Text>
+        </LinearGradient>
       );
     }
 
     if (aiSuggestions.length === 0) {
-      return null; // 제안이 없으면 표시 안 함
+      return null;
     }
 
     return (
-      <View className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mt-4">
+      <LinearGradient
+        colors={['#a855f7', '#ec4899']}
+        className="rounded-2xl p-4 mt-4"
+      >
         <View className="flex-row items-center gap-2 mb-3">
-          <Sparkles color="#a855f7" size={16} />
-          <Text className="text-purple-900 text-sm">AI 대화 제안</Text>
+          <Sparkles color="#ffffff" size={16} />
+          <Text className="text-white text-sm font-semibold">AI 대화 제안</Text>
         </View>
         {aiSuggestions.map((suggestion, idx) => (
           <TouchableOpacity
             key={idx}
             onPress={() => handleSend(suggestion)}
-            className="bg-white border border-purple-200 rounded-lg px-3 py-2 mb-2"
+            className="bg-white/20 backdrop-blur rounded-lg px-3 py-2 mb-2"
             activeOpacity={0.7}
           >
-            <Text className="text-gray-700 text-sm">{suggestion}</Text>
+            <Text className="text-white text-sm">{suggestion}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </LinearGradient>
     );
   };
+
+  // ⭐️ 모달로 표시되는 AI 추천
+  const renderSuggestionsModal = () => (
+    <Modal
+      visible={showSuggestionsModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowSuggestionsModal(false)}
+    >
+      <View className="flex-1 justify-end bg-black/50">
+        <LinearGradient
+          colors={['#a855f7', '#ec4899']}
+          className="rounded-t-3xl p-6 min-h-[300px]"
+        >
+          {/* 헤더 */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-2">
+              <Sparkles color="#ffffff" size={20} />
+              <Text className="text-white text-lg font-bold">AI 대화 추천</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setShowSuggestionsModal(false)}
+              className="bg-white/20 rounded-full p-2"
+            >
+              <X color="#ffffff" size={20} />
+            </TouchableOpacity>
+          </View>
+
+          {/* 로딩 또는 추천 목록 */}
+          {isLoadingSuggestions ? (
+            <View className="flex-1 items-center justify-center py-8">
+              <ActivityIndicator color="#ffffff" size="large" />
+              <Text className="text-white mt-4 text-sm">
+                현재 대화 맥락을 분석 중입니다...
+              </Text>
+            </View>
+          ) : aiSuggestions.length > 0 ? (
+            <View className="gap-3">
+              <Text className="text-white/80 text-sm mb-2">
+                상황에 맞는 메시지를 선택하세요
+              </Text>
+              {aiSuggestions.map((suggestion, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => handleSend(suggestion)}
+                  className="bg-white rounded-xl px-4 py-4"
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-gray-900 text-base">{suggestion}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View className="flex-1 items-center justify-center py-8">
+              <Text className="text-white text-sm">
+                추천을 생성할 수 없습니다
+              </Text>
+            </View>
+          )}
+
+          {/* 새로고침 버튼 */}
+          {!isLoadingSuggestions && aiSuggestions.length > 0 && (
+            <TouchableOpacity
+              onPress={handleRequestSuggestions}
+              className="mt-4 bg-white/20 rounded-xl py-3 items-center"
+              activeOpacity={0.7}
+            >
+              <Text className="text-white font-semibold">🔄 다시 추천받기</Text>
+            </TouchableOpacity>
+          )}
+        </LinearGradient>
+      </View>
+    </Modal>
+  );
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white"
+      className="flex-1 bg-gradient-to-b from-purple-50 to-pink-50"
     >
       {/* Header */}
-      {/* ... (헤더 UI는 기존과 동일) ... */}
-      <View className="bg-white border-b border-gray-200 p-4 pt-12">
+      <LinearGradient
+        colors={['#ec4899', '#9333ea']}
+        className="border-b border-white/20 p-4 pt-12"
+      >
         <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <ArrowLeft color="#000" size={24} />
+            <ArrowLeft color="#ffffff" size={24} />
           </TouchableOpacity>
           <Image
             source={{ uri: matchData.image }}
-            className="w-10 h-10 rounded-full"
+            className="w-10 h-10 rounded-full border-2 border-white"
           />
           <View className="flex-1">
-            <Text className="text-gray-900 font-medium">
+            <Text className="text-white font-semibold text-base">
               {matchData.name}, {matchData.age}
             </Text>
             <View className="flex-row items-center gap-1">
-              <Sparkles color="#a855f7" size={12} />
-              <Text className="text-purple-500 text-xs">
+              <Sparkles color="#ffffff" size={12} />
+              <Text className="text-white/90 text-xs">
                 {matchData.styleScore}% 스타일 매칭
               </Text>
             </View>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Messages */}
       <FlatList
         data={messages}
         renderItem={renderMessage}
         keyExtractor={item => item.id.toString()}
-        className="flex-1 bg-gray-50 px-4"
+        className="flex-1 bg-gradient-to-b from-gray-900 to-gray-800 px-4"
         contentContainerStyle={{ paddingVertical: 16 }}
-        ListFooterComponent={() => (
-          // ⭐️ 7. 첫 대화일 때만(메시지가 없을 때) AI 제안을 렌더링합니다.
-          messages.length === 0 ? renderAiSuggestions() : null
-        )}
+        ListFooterComponent={renderInitialSuggestions}
       />
 
       {/* Input */}
-      <View className="bg-white border-t border-gray-200 p-4">
-        {/* ... (기존 Input UI는 동일) ... */}
+      <View className="bg-gray-900 border-t border-gray-700 p-4">
         <View className="flex-row items-center gap-2">
-          <TouchableOpacity>
-            <ImageIcon color="#9ca3af" size={24} />
+          {/* ⭐️ AI 추천 버튼 (Sparkles 아이콘) */}
+          <TouchableOpacity 
+            onPress={handleRequestSuggestions}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-2"
+            activeOpacity={0.8}
+          >
+            <Sparkles color="#ffffff" size={20} />
           </TouchableOpacity>
-          <View className="flex-1 bg-gray-100 border border-gray-200 rounded-full flex-row items-center px-4">
+
+          <View className="flex-1 bg-gray-800 border border-gray-700 rounded-full flex-row items-center px-4">
             <TextInput
               value={inputText}
               onChangeText={setInputText}
               placeholder="메시지를 입력하세요..."
               placeholderTextColor="#9ca3af"
-              className="flex-1 py-2 text-gray-900"
+              className="flex-1 py-2 text-white"
             />
             <TouchableOpacity>
-              <Smile color="#9ca3af" size={20} />
+              <Smile color="#ffffff" size={20} />
             </TouchableOpacity>
           </View>
+
           <TouchableOpacity
             onPress={() => handleSend()}
             disabled={!inputText.trim()}
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={inputText.trim() ? ['#ec4899', '#9333ea'] : ['#e5e7eb', '#e5e7eb']}
+              colors={inputText.trim() ? ['#ec4899', '#9333ea'] : ['#4b5563', '#4b5563']}
               className="w-10 h-10 rounded-full items-center justify-center"
             >
               <Send color="white" size={20} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
-
-        {/* ⭐️ 8. 기능 2: "다음 대화 추천" (나중에 이 버튼에 fetchNextTopicSuggestions 함수를 연결합니다) */}
-        {messages.length > 0 && (
-          <TouchableOpacity
-            // onPress={fetchNextTopicSuggestions} // 👈 나중에 이 함수를 구현
-            className="mt-2 flex-row items-center gap-1"
-          >
-            <Sparkles color="#a855f7" size={12} />
-            <Text className="text-purple-500 text-xs">AI 다음 대화 제안 보기</Text>
-          </TouchableOpacity>
-        )}
       </View>
+
+      {/* ⭐️ AI 추천 모달 */}
+      {renderSuggestionsModal()}
     </KeyboardAvoidingView>
   );
 }
