@@ -6,7 +6,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ImageBackground
-        source={{ uri: 'https://images.unsplash.com/photo-1483985988355-763728e1935b' }}
+        source={{ uri: 'https://i.pinimg.com/1200x/e3/d8/65/e3d86524d3b6ecb2fb9ab703c0ed714c.jpg' }}
         style={styles.background}
         resizeMode="cover"
       >
@@ -30,15 +30,15 @@ export default function HomeScreen({ navigation }) {
                 </Text>
                 
                 <Text style={styles.description}>
-                  사용자의 패션 스타일과 라이프스타일 특성을 AI로 정밀하게 분석하여 
+                  사용자의 패션 스타일과 라이프스타일을 AI로 분석하여 {'\n'}
                   개인의 취향과 조화를 이루는 이성을 매칭합니다.
                 </Text>
 
                 {/* Features */}
                 <View style={styles.features}>
-                  <FeatureCard icon="✨" title="AI 스타일 분석" />
-                  <FeatureCard icon="💕" title="패션 기반 매칭" />
-                  <FeatureCard icon="💬" title="자연스러운 대화 시작" />
+                  <FeatureCard icon="🤖" title="AI 스타일 분석" />
+                  <FeatureCard icon="👗" title="패션 기반 매칭" />
+                  <FeatureCard icon="💬" title="자연스러운 AI 대화 지원" />
                 </View>
 
                 {/* CTA Buttons */}
@@ -103,14 +103,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#ffffff',
-    fontSize: 48,
-    fontWeight: 'bold',
+    fontSize: 50,
+    fontWeight: '300',
     marginBottom: 8,
   },
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.3)',
-    maxWidth: 448,
+    maxWidth: 660,
   },
   mainContent: {
     maxWidth: 672,
@@ -162,14 +162,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   secondaryButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: '#ffffff',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#ffffff',
+    color: '#000000',
     fontSize: 16,
     fontWeight: 'bold',
   },
