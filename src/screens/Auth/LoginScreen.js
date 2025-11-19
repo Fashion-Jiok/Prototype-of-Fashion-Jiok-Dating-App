@@ -15,6 +15,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleVerifyCode = () => {
     if (code.length === 6) {
+      // 인증 완료 -> Main 화면으로 바로 이동
       navigation.replace('Main');
     }
   };
